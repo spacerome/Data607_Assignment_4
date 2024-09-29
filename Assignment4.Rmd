@@ -1,0 +1,161 @@
+---
+title: 'Data607 Assignment 4: Tidying and Transforming Data'
+author: "Anthony Josue Roman"
+date: "2024-09-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(readr)
+library(RCurl)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+```
+
+This assignment will use the following packages:
+
+```{r eval=FALSE}
+library(readr)
+library(RCurl)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+```
+
+## General Overview
+
+The goal of this assignment is to utilize untidy airport data that were on time or delayed from 5 different locations (cities) from two different airlines. The following data will also be uploaded onto my github [page](https://github.com/spacerome/Data607_Assignment_4). 
+
+## Initilization
+
+To get the data, we will extract the data from the github file from [here](https://raw.githubusercontent.com/spacerome/Data607_Assignment_4/refs/heads/main/airline_data.csv).
+
+```{r get data}
+raw_file <- getURL("https://raw.githubusercontent.com/spacerome/Data607_Assignment_4/refs/heads/main/airline_data.csv")
+
+csvfile <- data.frame(read.csv(text=raw_file, sep= "\t", stringsAsFactors = FALSE, check.names = FALSE))
+csvfile
+```
+
+Looking at the data the raw data gives `X` and `X.1` for the first columns which should be `airline` and `status` which should be fixed. The third and fifth rows have an empty value which will be fixed in the next section.
+
+## Tidying the Data
+
+```{r tidying data}
+colnames(csvfile)[1] <- "airline"
+colnames(csvfile)[2] <- "status"
+csvfile
+```
+
+```{r include=FALSE}
+# Alternate if the first one fails Uncomment if fails
+# csvfile$airline[csvfile$airline == "    " | is.na(csvfile$airline)] <- c("ALASKA", "AM WEST")
+# colnames(csvfile) <- gsub("\\.", " ", colnames(csvfile))
+# csvfile
+```
+
+After fixing the columns, we will now fix the empty rows from rows 3 and 5, to have `ALASKA` and `AMWEST` to continue prepping the data for analysis on the next section. The cities that have a space (e.g. Los Angeles) were outputed as `Los.Angeles` which will be fixed by utilizing `gsub` to fix it.
+
+```{r fixing empties}
+csvfile[csvfile=="    "] <- NA
+colnames(csvfile) <- gsub("\\.", " ", colnames(csvfile))
+csvfile <- fill(csvfile, airline)
+csvfile
+```
+
+After cleaning the data then we utilize `pivot_longer` to prep `csvfile` for further data analysis.
+
+```{r make tables}
+csvfile <- pivot_longer(csvfile, cols = !c(airline, status),
+                        names_to = "city", values_to = "flights")
+head(csvfile)
+```
+
+## Analyzing the Data
+
+After cleaning the data we will have three variables utilized for analysis: `airlineData`, `cityData`, and `cityairlineData`.
+
+```{r airline analysis}
+airlineData <- csvfile %>%
+  group_by(airline) %>% summarise(flightFrequency = sum(flights), flightDelay = sum(ifelse(status =='delayed',flights,0)))
+airlineData <- airlineData %>%
+  mutate(ontimeFlights = flightFrequency - flightDelay,
+         delayRate = flightDelay/ontimeFlights,
+         ontimeRate = ontimeFlights/flightFrequency) %>% arrange(delayRate)
+airlineData
+```
+
+From analyzing the `airlineData`, `AM WEST` has the highest ontime rate of `89.1%`, and lowest delay rate of `12.2%`, whereas `ALASKA` has a higher delay rate of `15.3%`, but lower ontime rate of `86.7%`.
+
+```{r city analysis}
+cityData <- csvfile %>%
+  group_by(city) %>% summarise(flightFrequency = sum(flights), flightDelay = sum(ifelse(status =='delayed',flights,0)))
+cityData <- cityData %>%
+  mutate(ontimeFlights = flightFrequency - flightDelay,
+         delayRate = flightDelay/ontimeFlights,
+         ontimeRate = ontimeFlights/flightFrequency) %>% arrange(delayRate)
+cityData
+```
+
+From analyzing the `cityData`, Phoenix has the highest ontime Rate of `92.2%`, and lowest delay rate of `8.44%`. San Francisco has the highest delay rate of `28.1%` and its ontime rate is `78.1%`. 
+
+```{r city airline analysis}
+cityairlineData <- csvfile %>%
+  group_by(city, airline) %>%
+  summarise(flightFrequency = sum(flights, na.rm = TRUE), 
+            flightDelay = sum(ifelse(status == 'delayed', flights, 0), na.rm = TRUE)) %>%
+  mutate(ontimeFlights = flightFrequency - flightDelay,
+         delayRate = flightDelay / flightFrequency) %>%
+  ungroup()
+cityairlineData
+```
+
+From this data, `AM WEST` had a higher number of flight delays than `ALASKA` within 4 of the 5 cities, but `ALASKA` had the highest delays at Seattle and had lesser delays on the other locations, but the delay rate for `AMWEST` is higher than `ALASKA` on all 5 cities.
+
+## Visualization
+
+The following code blocks below will be visualizations from the data.
+
+```{r barplot airline delays and ontime flights}
+ggplot(airlineData, aes(x = reorder(airline, -flightFrequency))) +
+  geom_bar(aes(y = ontimeFlights, fill = "On-Time"), stat = "identity") +
+  geom_bar(aes(y = -flightDelay, fill = "Delayed"), stat = "identity") +
+  labs(title = "On-Time and Delayed Flights by Airline", x = "Airline", y = "Number of Flights", fill = "Status") +  # Change legend title
+  scale_fill_manual(values = c("On-Time" = "skyblue", "Delayed" = "salmon")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Though `AM WEST` has the highest frequencies, it appears to have the most delayed flights as opposed to `ALASKA`.
+
+```{r Delay Rate City}
+ggplot(cityairlineData, aes(x = airline, y = delayRate, fill = airline)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "Delay Rate by Airline and City", 
+       x = "Airline", y = "Delay Rate") +
+  facet_wrap(~ city, scales = "free") +  # Facet by city
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(fill = guide_legend(title = "Airline"))
+
+```
+
+This bar plot shows that `AM WEST` has a higher delay rate than `ALASKA`, and reinforces the statement about Phoenix having the highest ontime rate, but lowest ontime rate, whereas San Francisco has the highest delay rate for both airlines.
+
+## Conclusion
+
+I believe if I had more data, such as more cities for each airline, or maybe more airlines, we can get a general understanding on what may be causing the delays for each city. I believe there is also an r library for flights that can be utilized to get a general understanding on why there are flights not arriving on time for San Francisco. I do believe if we include factors such as air traffic, weather, and other uncontrollable factors, this will give us a general understanding on *why* this is occurring.
