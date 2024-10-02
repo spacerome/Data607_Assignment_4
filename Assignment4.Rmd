@@ -168,7 +168,7 @@ The following code blocks below will be visualizations from the data.
 ggplot(airlineData, aes(x = reorder(airline, -flightFrequency))) +
   geom_bar(aes(y = ontimeRate, fill = "On-Time"), stat = "identity") +
   geom_bar(aes(y = -delayRate, fill = "Delayed"), stat = "identity") +
-  labs(title = "On-Time and Delayed Flights by Airline", x = "Airline", y = "Rate", fill = "Status") +
+  labs(title = "On-Time and Delayed Rates Overall by Airline", x = "Airline", y = "Rate", fill = "Status") +
   scale_fill_manual(values = c("On-Time" = "skyblue", "Delayed" = "salmon")) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
