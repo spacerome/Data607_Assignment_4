@@ -98,6 +98,23 @@ airlineData <- airlineData %>%
 airlineData
 ```
 
+```{r Airline Table}
+airlineData %>%
+  mutate(
+    delayRate = scales::percent(delayRate, accuracy = 0.01),
+    ontimeRate = scales::percent(ontimeRate, accuracy = 0.01)
+  ) %>%
+  select(airline, delayRate, ontimeRate) %>%
+  rename(       
+    Airline = airline,     
+    `Delay Rate` = delayRate,  
+    `Ontime Rate` = ontimeRate 
+  ) %>%
+  kable(format = "html", caption = "Delay Rate and On-Time Rate by Airline") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), position = "center") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#4CAF50") 
+```
+
 From analyzing the `airlineData`, `AM WEST` has the highest ontime rate of `89.1%`, and lowest delay rate of `12.2%`, whereas `ALASKA` has a higher delay rate of `15.3%`, but lower ontime rate of `86.7%`.
 
 ```{r city analysis}
@@ -118,12 +135,30 @@ cityairlineData <- csvfile %>%
   summarise(flightFrequency = sum(flights, na.rm = TRUE), 
             flightDelay = sum(ifelse(status == 'delayed', flights, 0), na.rm = TRUE)) %>%
   mutate(ontimeFlights = flightFrequency - flightDelay,
-         delayRate = flightDelay / flightFrequency) %>%
+         delayRate = flightDelay / flightFrequency, ontimeRate = ontimeFlights/flightFrequency) %>%
   ungroup()
 cityairlineData
 ```
 
-From this data, `AM WEST` had a higher number of flight delays than `ALASKA` within 4 of the 5 cities, but `ALASKA` had the highest delays at Seattle and had lesser delays on the other locations, but the delay rate for `AMWEST` is higher than `ALASKA` on all 5 cities.
+```{r City Data Table}
+cityairlineData %>%
+  mutate(
+    delayRate = scales::percent(delayRate, accuracy = 0.01),
+    ontimeRate = scales::percent(ontimeRate, accuracy = 0.01)
+  ) %>%
+  select(city, airline, delayRate, ontimeRate) %>%
+  rename(
+    City = city,        
+    Airline = airline,     
+    `Delay Rate` = delayRate,  
+    `Ontime Rate` = ontimeRate 
+  ) %>%
+  kable(format = "html", caption = "Delay Rate and On-Time Rate by City and Airline") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), position = "center") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#4CAF50") 
+```
+
+From this data, `AM WEST` had a higher delay rate than `ALASKA` within 4 of the 5 cities, but `ALASKA` had the highest delay rate at Seattle and had lesser delay rate on the other locations, but the delay rate for `AMWEST` is higher than `ALASKA` on all 5 cities. The on time rate was the highest at Phoenix for both airlines which indicates it was most likely the easiest location for both airlines.
 
 ## Visualization
 
@@ -131,13 +166,12 @@ The following code blocks below will be visualizations from the data.
 
 ```{r barplot airline delays and ontime flights}
 ggplot(airlineData, aes(x = reorder(airline, -flightFrequency))) +
-  geom_bar(aes(y = ontimeFlights, fill = "On-Time"), stat = "identity") +
-  geom_bar(aes(y = -flightDelay, fill = "Delayed"), stat = "identity") +
-  labs(title = "On-Time and Delayed Flights by Airline", x = "Airline", y = "Number of Flights", fill = "Status") +  # Change legend title
+  geom_bar(aes(y = ontimeRate, fill = "On-Time"), stat = "identity") +
+  geom_bar(aes(y = -delayRate, fill = "Delayed"), stat = "identity") +
+  labs(title = "On-Time and Delayed Flights by Airline", x = "Airline", y = "Rate", fill = "Status") +
   scale_fill_manual(values = c("On-Time" = "skyblue", "Delayed" = "salmon")) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
-
 ```
 
 Though `AM WEST` has the highest frequencies, it appears to have the most delayed flights as opposed to `ALASKA`.
@@ -147,15 +181,29 @@ ggplot(cityairlineData, aes(x = airline, y = delayRate, fill = airline)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   labs(title = "Delay Rate by Airline and City", 
        x = "Airline", y = "Delay Rate") +
-  facet_wrap(~ city, scales = "free") +  # Facet by city
+  facet_wrap(~ city, scales = "free") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5)) +
   guides(fill = guide_legend(title = "Airline"))
-
 ```
 
 This bar plot shows that `AM WEST` has a higher delay rate than `ALASKA`, and reinforces the statement about Phoenix having the highest ontime rate, but lowest ontime rate, whereas San Francisco has the highest delay rate for both airlines.
 
+```{r On-Time Rate City}
+ggplot(cityairlineData, aes(x = airline, y = ontimeRate, fill = airline)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "On Time Rate by Airline and City", 
+       x = "Airline", y = "On Time Rate") +
+  facet_wrap(~ city, scales = "free") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(fill = guide_legend(title = "Airline"))
+```
+
+Over here this bar plot shows a pretty tight on-time rate between all five cities, with `ALASKA` being slightly higher than `AM WEST`.
+
 ## Conclusion
+
+Overall, from the data used for this assignment, `AM WEST` has a higher delay rate in all cities, **but** overall, `ALASKA` has a higher delay rate overall than `AM WEST`. 
 
 I believe if I had more data, such as more cities for each airline, or maybe more airlines, we can get a general understanding on what may be causing the delays for each city. I believe there is also an r library for flights that can be utilized to get a general understanding on why there are flights not arriving on time for San Francisco. I do believe if we include factors such as air traffic, weather, and other uncontrollable factors, this will give us a general understanding on *why* this is occurring.
