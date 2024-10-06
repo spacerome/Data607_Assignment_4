@@ -202,6 +202,14 @@ ggplot(cityairlineData, aes(x = airline, y = ontimeRate, fill = airline)) +
 
 Over here this bar plot shows a pretty tight on-time rate between all five cities, with `ALASKA` being slightly higher than `AM WEST`.
 
+## CSV File Output
+
+Outputs a csv file to replicate anaylsis:
+
+```{r csv}
+write.csv(csvfile,"airline_data.csv")
+```
+
 ## Conclusion
 
 Overall, from the data used for this assignment, `AM WEST` has a higher delay rate in all cities, **but** overall, `ALASKA` has a higher delay rate overall than `AM WEST`. 
